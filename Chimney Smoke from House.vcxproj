@@ -136,8 +136,10 @@
     <ClCompile Include="chimney.h" />
     <ClCompile Include="glad.c" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="stb_impl.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="House.h" />
     <ClInclude Include="shader.h" />
     <ClInclude Include="stb_image.h" />
   </ItemGroup>
@@ -148,8 +150,20 @@
     <None Include="billboard.vert" />
     <None Include="chimney.frag" />
     <None Include="chimney.vert" />
+    <None Include="fragment_shader.glsl" />
+    <None Include="ground.frag" />
+    <None Include="ground.vert" />
+    <None Include="house.frag" />
+    <None Include="house.vert" />
     <None Include="particle.frag" />
     <None Include="particle.vert" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="brick_diffuse.jpg" />
+    <Image Include="grass.jpg" />
+    <Image Include="house.png" />
+    <Image Include="house_lights.jpg" />
+    <Image Include="roof.jpg" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -2,6 +2,7 @@
 #define CHIMNEY_H
 
 #include <glad/glad.h>
+#include "shader.h"
 
 // Hollow chimney with inner and outer walls, no top.
 // Vertex layout: location 0 = vec3 position, location 1 = vec3 normal, location 2 = vec2 uv
@@ -117,11 +118,14 @@ public:
         if (VAO) glDeleteVertexArrays(1, &VAO);
     }
 
-    void Draw() const {
+    void Draw(const Shader& shader, const glm::mat4& model) const {
+        shader.use();
+        shader.setMat4("model", model);
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 90, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
     }
+
 
 private:
     GLuint VAO = 0, VBO = 0, EBO = 0;

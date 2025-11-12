@@ -24,12 +24,18 @@
     <ClCompile Include="chimney.h">
       <Filter>Файлы ресурсов</Filter>
     </ClCompile>
+    <ClCompile Include="stb_impl.cpp">
+      <Filter>Файлы ресурсов</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="shader.h">
       <Filter>Файлы ресурсов</Filter>
     </ClInclude>
     <ClInclude Include="stb_image.h">
+      <Filter>Файлы ресурсов</Filter>
+    </ClInclude>
+    <ClInclude Include="House.h">
       <Filter>Файлы ресурсов</Filter>
     </ClInclude>
   </ItemGroup>
@@ -42,5 +48,27 @@
     <None Include="chimney.vert" />
     <None Include="chimney.frag" />
     <None Include=".gitignore" />
+    <None Include="house.vert" />
+    <None Include="house.frag" />
+    <None Include="ground.vert" />
+    <None Include="ground.frag" />
+    <None Include="fragment_shader.glsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="house.png">
+      <Filter>Файлы ресурсов</Filter>
+    </Image>
+    <Image Include="brick_diffuse.jpg">
+      <Filter>Файлы ресурсов</Filter>
+    </Image>
+    <Image Include="grass.jpg">
+      <Filter>Файлы ресурсов</Filter>
+    </Image>
+    <Image Include="roof.jpg">
+      <Filter>Файлы ресурсов</Filter>
+    </Image>
+    <Image Include="house_lights.jpg">
+      <Filter>Файлы ресурсов</Filter>
+    </Image>
   </ItemGroup>
 </Project>

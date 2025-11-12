@@ -1,4 +1,3 @@
-// main.cpp
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -9,9 +8,46 @@
 #include <cstdlib>
 #include "shader.h"
 #include "chimney.h"
+#include "House.h"
 
-#define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+
+
+unsigned int loadTexture(const char* path)
+{
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+
+    int width, height, nrComponents;
+    stbi_set_flip_vertically_on_load(true); // чтобы текстура не была перевёрнута
+    unsigned char* data = stbi_load(path, &width, &height, &nrComponents, 0);
+    if (data)
+    {
+        GLenum format;
+        if (nrComponents == 1)
+            format = GL_RED;
+        else if (nrComponents == 3)
+            format = GL_RGB;
+        else if (nrComponents == 4)
+            format = GL_RGBA;
+
+        glBindTexture(GL_TEXTURE_2D, textureID);
+        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
+    else
+    {
+        std::cout << "Failed to load texture at path: " << path << std::endl;
+    }
+    stbi_image_free(data);
+    return textureID;
+}
+
 
 // ---------- Perlin noise ----------
 float fade(float t) { return t * t * t * (t * (t * 6 - 15) + 10); }
@@ -118,16 +154,57 @@ int main() {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_DEPTH_TEST);
-    // optional: glEnable(GL_CULL_FACE);
+
+
+    // ----------- GROUND SETUP -----------
+    float groundVertices[] = {
+        // positions          // texcoords
+        -10.0f, 0.0f, -10.0f,  0.0f,  0.0f,
+         10.0f, 0.0f, -10.0f, 10.0f,  0.0f,
+         10.0f, 0.0f,  10.0f, 10.0f, 10.0f,
+        -10.0f, 0.0f,  10.0f,  0.0f, 10.0f
+    };
+
+    unsigned int groundIndices[] = { 0, 1, 2, 2, 3, 0 };
+
+    unsigned int groundVAO, groundVBO, groundEBO;
+    glGenVertexArrays(1, &groundVAO);
+    glGenBuffers(1, &groundVBO);
+    glGenBuffers(1, &groundEBO);
+
+    glBindVertexArray(groundVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, groundVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(groundVertices), groundVertices, GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, groundEBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(groundIndices), groundIndices, GL_STATIC_DRAW);
+
+    // position
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    // texcoords
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    glBindVertexArray(0);
+
+    
+
 
     // ---------- SHADERS ----------
-    // particle shader (existing)
-    Shader particleShader("billboard.vert", "billboard.frag", "billboard.geom");
-    // chimney shader (new)
-    Shader chimneyShader("chimney.vert", "chimney.frag");
 
-    // Now it's safe to create GL objects that depend on a valid GL context
+    Shader particleShader("billboard.vert", "billboard.frag", "billboard.geom");
+    Shader chimneyShader("chimney.vert", "chimney.frag");
+    
     Chimney chimney;
+
+    House house("house.png", "roof.jpg");
+    Shader houseShader("house.vert", "house.frag");
+
+    Shader groundShader("ground.vert", "ground.frag");
+    unsigned int grassTexture = loadTexture("grass.jpg");
+
+
 
     // ---------- load smoke texture ----------
     int tw, th, tc;
@@ -143,7 +220,7 @@ int main() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    // ---------- load chimney texture (brick) ----------
+    // ---------- load chimney texture ----------
     int cw, ch, cc;
     unsigned char* cdata = stbi_load("brick_diffuse.jpg", &cw, &ch, &cc, 0);
     if (!cdata) {
@@ -190,11 +267,11 @@ int main() {
     float lastTime = (float)glfwGetTime();
     float spawnTimer = 0.0f;
 
-    // set chimney shader texture unit once (static)
+    // set chimney shader texture unit
     chimneyShader.use();
     chimneyShader.setInt("tex", 0);
 
-    // particle shader: set smokeTex unit
+    // set smokeTex unit
     particleShader.use();
     particleShader.setInt("smokeTex", 0);
 
@@ -204,7 +281,7 @@ int main() {
         lastTime = now;
         processInput(window);
 
-        // --- spawn in puffs/trains ---
+        // --- spawn in puffs ---
         if (smokeActive) {
             spawnTimer += dt;
             if (spawnTimer >= 0.12f) {
@@ -217,7 +294,7 @@ int main() {
             }
         }
 
-        // --- update particles (flow logic preserved) ---
+        // --- update particles ---
         for (auto& p : particles) {
             p.life += dt / LIFE_SPAN;
             if (p.life >= 1.0f) {
@@ -272,15 +349,31 @@ int main() {
         glm::vec3 right = glm::normalize(glm::cross(forward, worldUp));
         glm::vec3 up = glm::cross(right, forward);
 
-        // --- render: sky, chimney (opaque), smoke (transparent) ---
-        glClearColor(0.55f, 0.75f, 0.95f, 1.0f); // sky color
+        // --- render: sky, chimney, smoke ---
+        glClearColor(0.55f, 0.75f, 0.95f, 1.0f); 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // --- draw chimney (opaque) ---
+        // ----------- DRAW GROUND -----------
+        groundShader.use();
+        glm::mat4 model = glm::mat4(1.0f);
+        groundShader.setMat4("model", model);
+        groundShader.setMat4("view", view);
+        groundShader.setMat4("projection", projection);
+        groundShader.setInt("texture1", 0);
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, grassTexture);
+        glBindVertexArray(groundVAO);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        glBindVertexArray(0);
+
+
+        // --- draw chimney ---
         chimneyShader.use();
         glm::mat4 chimneyModel = glm::mat4(1.0f);
-        chimneyModel = glm::translate(chimneyModel, glm::vec3(0.0f, CHIMNEY_Y - 0.5f, 0.0f)); // align top to CHIMNEY_Y
+        chimneyModel = glm::translate(chimneyModel, glm::vec3(0.7f, 0.9f, -1.0f));
         chimneyShader.setMat4("model", chimneyModel);
+
         chimneyShader.setMat4("view", view);
         chimneyShader.setMat4("proj", projection);
 
@@ -297,14 +390,16 @@ int main() {
             glBindTexture(GL_TEXTURE_2D, texChimney);
         }
         else {
-            // no texture loaded: bind smoke texture as placeholder (optional)
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, texSmoke);
         }
+        // Debug wireframe mode
 
-        chimney.Draw();
 
-        // --- draw smoke (transparent) ---
+        chimney.Draw(chimneyShader, chimneyModel);
+        house.Draw(houseShader, view, projection);
+
+        // --- draw smoke---
         particleShader.use();
         particleShader.setMat4("model", modelIdentity);
         particleShader.setMat4("view", view);
@@ -327,7 +422,7 @@ int main() {
         glfwPollEvents();
     }
 
-    // cleanup (textures + buffers)
+    // cleanup 
     if (texChimney) glDeleteTextures(1, &texChimney);
     glDeleteTextures(1, &texSmoke);
     glDeleteBuffers(1, &vbo);
@@ -337,16 +432,25 @@ int main() {
     return 0;
 }
 
-// ---------- Respawn ----------
+const float CHIMNEY_BASE_Y = 0.9f;
+const float CHIMNEY_TOP_Y = CHIMNEY_BASE_Y + 0.6f;
+const float CHIMNEY_X = 0.7f;
+const float CHIMNEY_Z = -1.0f;
+
 void respawnParticle(Particle& p) {
     float angle = (rand() % 1000) / 1000.0f * 2.0f * 3.14159265359f;
     float r = ((rand() % 1000) / 1000.0f) * SPAWN_RADIUS_BASE;
-    p.pos = glm::vec3(cos(angle) * r, CHIMNEY_Y, sin(angle) * r);
+    p.pos = glm::vec3(
+        CHIMNEY_X + cos(angle) * r,
+        CHIMNEY_TOP_Y,
+        CHIMNEY_Z + sin(angle) * r
+    );
     float up = UPWARD_SPEED_MIN + ((rand() % 1000) / 1000.0f) * (UPWARD_SPEED_MAX - UPWARD_SPEED_MIN);
     p.vel = glm::vec3(((rand() % 1000) / 1000.0f - 0.5f) * 0.02f, up, ((rand() % 1000) / 1000.0f - 0.5f) * 0.02f);
     p.life = 0.0f;
     p.size = SIZE_BASE * (0.8f + (rand() % 1000) / 1000.0f * 0.4f);
 }
+
 
 void processInput(GLFWwindow* window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -358,11 +462,9 @@ void processInput(GLFWwindow* window) {
     bool gPressedNow = glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS;
     bool hPressedNow = glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS;
 
-    // Toggle smoke on 'G' key press
     if (gPressedNow && !gPressedLast)
         smokeActive = true;
 
-    // Stop smoke on 'H' key press
     if (hPressedNow && !hPressedLast)
         smokeActive = false;
 
